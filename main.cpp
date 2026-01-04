@@ -8,7 +8,6 @@
 #include "src/objectstore.h"
 #include "src/refs.h"
 #include "src/vector.h"
-#include <algorithm>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -181,6 +180,9 @@ int main(int argc, char *argv[]) {
           }
         } else if (!filePath2.empty()) {
           // Diff between a file and another
+          std::cout << "File Differences:" << "\n"
+                    << "================" << "\n";
+
           std::ifstream file1(filePath1), file2(filePath2);
           Vector<std::string> lines1, lines2;
           std::string line;
@@ -513,6 +515,25 @@ int main(int argc, char *argv[]) {
         }
       })
       .add_argument(branchName, "branch name", "branch to merge");
+
+  parser
+      .add_command("push",
+                   "push the current working tree to the remote repository")
+      .set_callback([&]() {
+
+      });
+
+  parser.add_command("pull", "pull the working tree from the remote repository")
+      .set_callback([&]() {
+
+      });
+      
+  parser
+      .add_command("remote",
+                   "Change the remote repository to the chosen repository")
+      .set_callback([&]() {
+
+      });
 
   try {
     parser.parse(argc, argv);
