@@ -3,8 +3,8 @@ package hashing
 import "golang.org/x/crypto/bcrypt"
 
 type Password struct {
-	Plaintext *string `json:"-" bson:"-"`
-	Hash      []byte  `json:"password" bson:"password"`
+	Plaintext *string `json:"-"`
+	Hash      []byte  `json:"password"`
 }
 
 func (p *Password) Set(plaintextPassword string) error {
