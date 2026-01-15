@@ -3,9 +3,9 @@
 CREATE TABLE IF NOT EXISTS Branch (
     branchName VARCHAR(50),
     repoName VARCHAR(50),
-    repoOwnerUsername VARCHAR(50),  
-    PRIMARY KEY(branchName, repoName, repoOwnerUsername),
-    FOREIGN KEY(repoName,repoOwnerUsername) REFERENCES Repository(repoName,repoOwnerUsername)
+    repoOwner VARCHAR(50),
+    PRIMARY KEY(branchName, repoName, repoOwner),
+    FOREIGN KEY(repoName,repoOwner) REFERENCES Repository(repoName,repoOwner)
 );
 -- +goose StatementEnd
 

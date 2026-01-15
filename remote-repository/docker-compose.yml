@@ -1,0 +1,21 @@
+services:
+  go_api:
+    container_name: go_app
+    build: .
+    ports:
+      - "8080:8080"
+    restart: always
+    environment:
+      - DATABASE_URL=host=go_db dbname=jitserver port=5432 user=ziad-eliwa password=ziad1234 sslmode=disable
+    depends_on:
+      - go_db
+  go_db:
+    container_name: go_db
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    restart: always
+    environment:
+      - POSTGRES_DB=jitserver
+      - POSTGRES_USER=ziad-eliwa
+      - POSTGRES_PASSWORD=ziad1234
