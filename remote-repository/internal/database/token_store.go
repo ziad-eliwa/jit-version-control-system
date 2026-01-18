@@ -8,8 +8,9 @@ import (
 
 type TokenStore interface {
 	StoreRefreshToken(username, token string) error
-	GetRefreshToken(username string) (*RefreshToken, error)
-	RevokeToken(username string) error
+	GetRefreshToken(token string) (*RefreshToken, error)
+	RevokeAllTokens(username string) error
+	RevokeToken(token string) error
 }
 
 type RefreshToken struct {
@@ -46,11 +47,11 @@ func (pg *PostgresTokenStore) StoreRefreshToken(username, token string) error {
 	return nil
 }
 
-func (pg *PostgresTokenStore) GetRefreshToken(username, token string) (*RefreshToken, error) {
+func (pg *PostgresTokenStore) GetRefreshToken(token string) (*RefreshToken, error) {
 	query :=
-		`SELECT refreshtoken, created_at,revoked, revoked_at FROM RefreshTokens WHERE username = $1 AND refreshtoken = $2`
+		`SELECT refreshtoken, created_at,revoked, revoked_at FROM RefreshTokens WHERE refreshtoken = $1`
 	refreshtoken := &RefreshToken{}
-	err := pg.DB.QueryRow(query, username, token).Scan(&refreshtoken)
+	err := pg.DB.QueryRow(query, token).Scan(&refreshtoken)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -63,20 +64,39 @@ func (pg *PostgresTokenStore) GetRefreshToken(username, token string) (*RefreshT
 }
 
 func (pg *PostgresTokenStore) RevokeAllTokens(username string) error {
-	query := 
-	`UPDATE RefreshTokens WHERE username = $1 SET revoked = true`
+	query :=
+		`UPDATE RefreshTokens WHERE username = $1 SET revoked = true`
 
-	tx,err := pg.DB.Begin()
-
-	if err != nil {
-		return err
-	}
-
-	_,err = tx.Exec(query,username)
+	tx, err := pg.DB.Begin()
 
 	if err != nil {
 		return err
 	}
 
-	return nil 
+	_, err = tx.Exec(query, username)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (pg *PostgresTokenStore) RevokeToken(token string) error {
+	query :=
+		`UPDATE RefreshTokens WHERE token = $2 SET revoked = true`
+
+	tx, err := pg.DB.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(query, token)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

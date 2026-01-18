@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ziad-eliwa/jit-version-control-system/internal/app"
-	"github.com/ziad-eliwa/jit-version-control-system/internal/route"
+	"github.com/ziad-eliwa/jit-version-control-system/internal/routes"
 )
 
 func main() {

@@ -1,16 +1,10 @@
 package models
 
 type RegisterRequest struct {
-	Username string `json:"username"`
+	Username     string `json:"username"`
 	EmailAddress string `json:"email"`
-	Password string `json:"password"`
-	FullName string `json:"full_name,omitempty"`
-}
-
-type RegisterTokenResponse struct {
-	Status bool `json:"status"`
-	AccessToken string `json:"access_token"` 
-	RefreshToken string `json:"refresh_token"`
+	Password     string `json:"password"`
+	FullName     string `json:"full_name,omitempty"`
 }
 
 type LoginRequest struct {
@@ -19,6 +13,11 @@ type LoginRequest struct {
 }
 
 type TokenResponse struct {
-	AccessToken string `json:"access_token"` 
+	Status       bool   `json:"status,omitempty"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }

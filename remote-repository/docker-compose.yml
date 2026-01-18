@@ -7,6 +7,7 @@ services:
     restart: always
     environment:
       - DATABASE_URL=host=go_db dbname=jitserver port=5432 user=ziad-eliwa password=ziad1234 sslmode=disable
+      - JWT_SECRET=6b1e864729a472e3b7bb790a3d3773a5a25563fdc21ebf5c91850c02878be0bb
     depends_on:
       - go_db
   go_db:

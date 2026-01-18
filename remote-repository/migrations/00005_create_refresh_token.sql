@@ -3,6 +3,7 @@
 CREATE TABLE IF NOT EXISTS RefreshTokens ( 
     username VARCHAR(50),
     refreshtoken VARCHAR(32),
+    expiry INTEGER, 
     created_at TIMESTAMP NOT NULL,
     revoked_at TIMESTAMP,
     revoked BOOLEAN NOT NULL,

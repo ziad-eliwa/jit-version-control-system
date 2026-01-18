@@ -1,12 +1,10 @@
 package services
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"os"
 	"regexp"
-	"time"
 
 	"github.com/ziad-eliwa/jit-version-control-system/internal/database"
 	"github.com/ziad-eliwa/jit-version-control-system/internal/middleware"
@@ -23,15 +21,14 @@ var (
 	ErrInvalidEmailAddress = errors.New("Invalid Email Address")
 	ErrUserAlreadyExists   = errors.New("User Already Exists")
 	ErrEmailAlreadyExists  = errors.New("Email Already Exists")
+	ErrUserNotFound        = errors.New("User not found")
 )
 
 type AuthService struct {
 	UserStore  database.UserStore
 	TokenStore database.TokenStore
-	// JWT Tokens
-	JWTSecret      string
-	AccessTokenTTL time.Duration
-	TokenGenerator middleware.JWTGenerator
+	// Middleware
+	Authentication middleware.AuthenticationMiddleware
 	// OAuth
 	googleClientID string
 	googleSecret   string
@@ -39,9 +36,10 @@ type AuthService struct {
 	githubSecret   string
 }
 
-func NewAuthService(userstore database.UserStore) *AuthService {
+func NewAuthService(userstore database.UserStore, tokenstore database.TokenStore) *AuthService {
 	return &AuthService{
 		UserStore:      userstore,
+		TokenStore:     tokenstore,
 		googleClientID: os.Getenv("GOOGLE_KEY"),
 		googleSecret:   os.Getenv("GOOGLE_SECRET"),
 		githubClientID: os.Getenv("GITHUB_KEY"),
@@ -49,17 +47,39 @@ func NewAuthService(userstore database.UserStore) *AuthService {
 	}
 }
 
-func (ah *AuthService) Login(username, password string) (string, error) {
+func (ah *AuthService) Login(username, password string) (*models.TokenResponse, error) {
 	user, err := ah.UserStore.GetUserbyUsername(username)
 
-	if err == nil || user.Username != "" {
-		return "", ErrUserAlreadyExists
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
 	}
 
-	return "", nil
+	if user.Username == "" || string(user.PasswordHash) == "" || user.EmailAddress == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	tokens, err := ah.GenerateAccessTokens(user.Username)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = ah.TokenStore.StoreRefreshToken(username, tokens.RefreshToken)
+
+	if err != nil {
+		return nil, err
+	}
+	//Return Tokens
+	return &models.TokenResponse{
+		RefreshToken: tokens.RefreshToken,
+		AccessToken:  tokens.AccessToken,
+	}, nil
 }
 
-func (ah *AuthService) Register(username, password, fullname, email string) (*models.RegisterTokenResponse, error) {
+func (ah *AuthService) Register(username, password, fullname, email string) (*models.TokenResponse, error) {
 	retrievedUser, err := ah.UserStore.GetUserbyUsername(username)
 
 	if err != sql.ErrNoRows {
@@ -93,17 +113,13 @@ func (ah *AuthService) Register(username, password, fullname, email string) (*mo
 
 	registeredUser := &database.User{
 		Username:     username,
-		Password:     pass,
+		PasswordHash: pass.Hash,
 		FullName:     fullname,
 		EmailAddress: email,
 	}
 
-	createdUser, err := ah.UserStore.CreateUser(registeredUser)
-	if err != nil {
-		return nil, err
-	}
 	// Generate Tokens - Store Refresh Token
-	tokens, err := ah.GenerateAccessTokens(createdUser)
+	tokens, err := ah.GenerateAccessTokens(registeredUser.Username)
 
 	if err != nil {
 		return nil, err
@@ -112,33 +128,36 @@ func (ah *AuthService) Register(username, password, fullname, email string) (*mo
 	err = ah.TokenStore.StoreRefreshToken(username, tokens.RefreshToken)
 
 	if err != nil {
-		// e := ah.UserStore.DeleteUser(username)
-		// if e != nil {
-		// 	return nil, e
-		// }
+		return nil, err
+	}
+
+	_, err = ah.UserStore.CreateUser(registeredUser)
+	if err != nil {
 		return nil, err
 	}
 	//Return Tokens
-	return &models.RegisterTokenResponse{
+	return &models.TokenResponse{
 		Status:       true,
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 	}, nil
 }
 
-func (ah *AuthService) GenerateAccessTokens(user *database.User) (*models.TokenResponse, error) {
-	// Generate JWT Tokens
-	tokens, err := ah.TokenGenerator(context.Background(), user.Username)
+func (ah *AuthService) GenerateAccessTokens(username string) (*models.TokenResponse, error) {
+	// Generate Access Tokens JWT
+	accessToken, err := ah.Authentication.GenerateJWTToken(username)
 	if err != nil {
 		return nil, err
 	}
+	// Generate Refresh Tokens - Opaque
+	refreshToken, err := ah.Authentication.GenerateAccessToken(username)
+	if err != nil {
+		return nil, err
+	}
+
 	return &models.TokenResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 
-func ValidateAccessToken(token string) (bool, error) {
-
-	return true, nil
-}
