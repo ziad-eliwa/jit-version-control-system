@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS Users (
     fullname VARCHAR(50) NOT NULL, 
     password_hash VARCHAR(255) NOT NULL,
     bio TEXT,
-    email_address VARCHAR(50) UNIQUE NOT NULL,
+    email_address VARCHAR(50) UNIQUE NOT NULL
 );
 
 -- +goose StatementEnd

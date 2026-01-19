@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS Repository (
     repoOwner VARCHAR(50),
     description TEXT,
     privacy VARCHAR(8) CHECK (privacy IN ('PUBLIC','PRIVATE')),
+    createdAt TIMESTAMP NOT NULL,
+    secret VARCHAR(32) NOT NULL,
     PRIMARY KEY (repoName, repoOwner),
     FOREIGN KEY (repoOwner) REFERENCES Users(username) ON DELETE CASCADE
 );

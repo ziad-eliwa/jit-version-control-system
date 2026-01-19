@@ -43,7 +43,8 @@ func NewApplication(logger *slog.Logger) (*Application, error) {
 		Logger: logger,
 	}
 	tokenStore := &database.PostgresTokenStore{
-		DB: pgDB,
+		DB:     pgDB,
+		Logger: logger,
 	}
 	repoStore := &database.PostgresRepoStore{
 		DB:     pgDB,
@@ -52,6 +53,7 @@ func NewApplication(logger *slog.Logger) (*Application, error) {
 	// Middleware
 	authMiddleware := &middleware.AuthenticationMiddleware{
 		TokenStore:  tokenStore,
+		RepoStore:   repoStore,
 		JWTSecret:   os.Getenv("JWT_SECRET"),
 		Timeout:     15 * time.Minute,
 		MaxRefresh:  24 * 7 * time.Hour,
@@ -70,6 +72,7 @@ func NewApplication(logger *slog.Logger) (*Application, error) {
 	repoHandler := &api.RepoHandler{
 		Logger:      logger,
 		RepoStore:   repoStore,
+		Authorizer:  authMiddleware,
 		PushService: pushService,
 		PullService: pullService,
 	}
@@ -93,5 +96,5 @@ func (app *Application) NotFound(c *gin.Context) {
 }
 
 func (app *Application) Main(c *gin.Context) {
-	c.JSON(http.StatusFound, gin.H{"message":"Ahlan fe JitHub"})
+	c.JSON(http.StatusFound, gin.H{"message": "Ahlan fe JitHub"})
 }

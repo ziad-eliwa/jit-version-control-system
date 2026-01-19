@@ -3,7 +3,7 @@ package services
 import (
 	"database/sql"
 	"errors"
-	"os"
+	// "os"
 	"regexp"
 
 	"github.com/ziad-eliwa/jit-version-control-system/internal/database"
@@ -40,10 +40,10 @@ func NewAuthService(userstore database.UserStore, tokenstore database.TokenStore
 	return &AuthService{
 		UserStore:      userstore,
 		TokenStore:     tokenstore,
-		googleClientID: os.Getenv("GOOGLE_KEY"),
-		googleSecret:   os.Getenv("GOOGLE_SECRET"),
-		githubClientID: os.Getenv("GITHUB_KEY"),
-		githubSecret:   os.Getenv("GITHUB_SECRET"),
+		// googleClientID: os.Getenv("GOOGLE_KEY"),
+		// googleSecret:   os.Getenv("GOOGLE_SECRET"),
+		// githubClientID: os.Getenv("GITHUB_KEY"),
+		// githubSecret:   os.Getenv("GITHUB_SECRET"),
 	}
 }
 

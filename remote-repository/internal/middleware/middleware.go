@@ -186,13 +186,14 @@ func (am *AuthenticationMiddleware) AuthorizePrivacy() gin.HandlerFunc {
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "repository not found"})
 		}
-
+		ctx.Set("REPOOWNER",user)
+		ctx.Set("REPONAME",repo)
 		ctx.Set("PRIVACY", privacy)
 		ctx.Next()
 	}
 }
 
-func (am *AuthenticationMiddleware) AuthorizeAccess() gin.HandlerFunc {
+func (am *AuthenticationMiddleware) AuthorizeEditAccess() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		currentUser, err := am.ExtractUserFromContext(ctx)
 
@@ -218,10 +219,14 @@ func (am *AuthenticationMiddleware) AuthorizeAccess() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		}
 
-		if !authorized {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "no access is granted to this repository"})
+		if authorized {
+			ctx.Set("CONTRIBUTOR", true)
+		} else {
+			ctx.Set("CONTRIBUTOR", false)
 		}
 
+		ctx.Set("REPOOWNER",user)
+		ctx.Set("REPONAME",repo)
 		ctx.Next()
 	}
 }
@@ -249,9 +254,11 @@ func (am *AuthenticationMiddleware) AuthorizeOwnership() gin.HandlerFunc {
 		if user == currentUser {
 			ctx.Set("OWNER", true)
 		} else {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error":"you are not the owner of this repositories"})
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you are not the owner of this repositories"})
 		}
 
+		ctx.Set("REPOOWNER",user)
+		ctx.Set("REPONAME",repo)
 		ctx.Next()
 	}
 }

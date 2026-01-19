@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS Commit (
     author VARCHAR(50) NOT NULL,
     commitMsg VARCHAR(100) NOT NULL,
     commitTime TIMESTAMP NOT NULL,
-
+    treeHash VARCHAR(10) NOT NULL,
     PRIMARY KEY(commitHash, branchName, repoName, repoOwner),
-
+    
     FOREIGN KEY(author) REFERENCES Users(username) ON DELETE CASCADE,
     FOREIGN KEY(branchName,repoName,repoOwner) REFERENCES Branch(branchName,repoName,repoOwner) ON DELETE CASCADE
 );

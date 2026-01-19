@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type RefreshToken struct {
 
 type PostgresTokenStore struct {
 	DB *sql.DB
+	Logger *slog.Logger
 }
 
 func (pg *PostgresTokenStore) StoreRefreshToken(username, token string) error {
