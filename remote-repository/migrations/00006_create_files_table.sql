@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS Files (
     fileHash VARCHAR(50),
     sizeBytes INTEGER,
     PRIMARY KEY(commitHash, branchName, repoName, repoOwner,objectKey),
-    FOREIGN KEY(branchName,repoName,repoOwner,commitHash) REFERENCES Commit(branchName,repoName,repoOwner.commitHash) ON DELETE CASCADE
+    FOREIGN KEY(branchName,repoName,repoOwner,commitHash) REFERENCES Commit(branchName,repoName,repoOwner,commitHash) ON DELETE CASCADE
 );
 -- +goose StatementEnd
 

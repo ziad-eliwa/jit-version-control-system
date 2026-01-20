@@ -10,7 +10,6 @@ services:
       - JWT_SECRET=6b1e864729a472e3b7bb790a3d3773a5a25563fdc21ebf5c91850c02878be0bb
     depends_on:
       - go_db
-      - object_store
   go_db:
     container_name: go_db
     image: postgres:latest
