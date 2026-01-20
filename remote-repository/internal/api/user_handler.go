@@ -21,22 +21,26 @@ func (uh *UserHandler) HandleGetProfile(c *gin.Context) {
 	usernameCtx, err := uh.Authentication.ExtractUserFromContext(c)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "no username found in context"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no username found in context"})
+		return
 	}
 
 	usernameParam := c.Param("username")
 
 	if usernameParam == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no username found in url"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no username found in url"})
+		return
 	}
 
 	_, err = uh.UserStore.GetUserbyUsername(usernameParam)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
 		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
 	}
 
 	userProfile := &database.UserProfile{}
@@ -44,16 +48,18 @@ func (uh *UserHandler) HandleGetProfile(c *gin.Context) {
 	if usernameCtx == usernameParam {
 		userProfile, err = uh.UserStore.GetUserSelfProfile(usernameParam)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
 		}
 		uh.Logger.Info(fmt.Sprintf("User Profile retrieved for %v by himself", usernameParam))
 	} else {
 		userProfile, err = uh.UserStore.GetUserProfile(usernameParam)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
 		}
 		uh.Logger.Info(fmt.Sprintf("User Profile retrieved for %v by %v", usernameParam, usernameCtx))
 	}
 
-	c.AbortWithStatusJSON(http.StatusFound, userProfile)
+	c.JSON(http.StatusFound, userProfile)
 }

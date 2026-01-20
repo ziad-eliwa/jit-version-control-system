@@ -17,10 +17,12 @@ import (
 )
 
 var (
-	ErrInvalidToken         = errors.New("Error Invalid Token")
-	ErrExpiredToken         = errors.New("Error Expired Token")
-	ErrUsernameNotInContext = errors.New("Error username not in context")
-	ErrInvalidUsernameType  = errors.New("Error invalid username type")
+	ErrInvalidToken               = errors.New("Error Invalid Token")
+	ErrExpiredToken               = errors.New("Error Expired Token")
+	ErrUsernameNotInContext       = errors.New("Error username not in context")
+	ErrInvalidUsernameType        = errors.New("Error invalid username type")
+	ErrMissingAuthorizationHeader = errors.New("Error Missing Authorizaion Header")
+	ErrMissingBearerPrefix        = errors.New("Missing Bearer Prefix")
 )
 
 type AuthenticationMiddleware struct {
@@ -35,18 +37,16 @@ type AuthenticationMiddleware struct {
 }
 
 // Generation
-func (am *AuthenticationMiddleware) GenerateJWTToken(data any) (string, error) {
-	expirationTime := time.Now().Add(am.Timeout)
-
+func (am *AuthenticationMiddleware) GenerateJWTToken(data string) (string, error) {
 	claims := jwt.MapClaims{
-		am.IdentityKey: "ziadeliwa",
-		"exp":          expirationTime.Unix(),
+		am.IdentityKey: data,
+		"exp":          time.Now().Add(am.Timeout).Unix(),
 		"iat":          time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString(am.JWTSecret)
+	tokenString, err := token.SignedString([]byte(am.JWTSecret))
 
 	if err != nil {
 		return "", err
@@ -69,23 +69,22 @@ func (am *AuthenticationMiddleware) ValidateJWTToken(c *gin.Context) (jwt.MapCla
 	var err error
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization Header"})
+		return nil, ErrMissingAuthorizationHeader
 	}
 	const Prefix = "Bearer "
 
 	if !strings.HasPrefix(authHeader, Prefix) {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing Bearer Prefix"})
+		return nil, ErrMissingBearerPrefix
 	}
 
 	token = strings.TrimPrefix(authHeader, Prefix)
 
 	jwtToken, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
-		if jwt.SigningMethodHS256 != t.Method {
+		if t.Method != jwt.SigningMethodHS256 {
 			return nil, jwt.ErrSignatureInvalid
 		}
-
 		c.Set("JWT_TOKEN", token)
-		return am.JWTSecret, nil
+		return []byte(am.JWTSecret), nil
 	})
 
 	if err != nil {
@@ -132,7 +131,7 @@ func (am *AuthenticationMiddleware) Autheticate() gin.HandlerFunc {
 
 		if err != nil {
 			am.Logger.Error("Error Authenticating")
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err})
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -173,21 +172,24 @@ func (am *AuthenticationMiddleware) AuthorizePrivacy() gin.HandlerFunc {
 
 		if user == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no username was specified in url"})
+			return
 		}
 
 		repo := ctx.Param("reponame")
 
 		if repo == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no repository name was specified in url"})
+			return
 		}
 
 		privacy, err := am.RepoStore.GetRepoPrivacy(user, repo)
 
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "repository not found"})
+			return
 		}
-		ctx.Set("REPOOWNER",user)
-		ctx.Set("REPONAME",repo)
+		ctx.Set("REPOOWNER", user)
+		ctx.Set("REPONAME", repo)
 		ctx.Set("PRIVACY", privacy)
 		ctx.Next()
 	}
@@ -199,24 +201,28 @@ func (am *AuthenticationMiddleware) AuthorizeEditAccess() gin.HandlerFunc {
 
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrUsernameNotInContext})
+			return
 		}
 
 		user := ctx.Param("username")
 
 		if user == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no username was specified in url"})
+			return
 		}
 
 		repo := ctx.Param("reponame")
 
 		if repo == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no repository name was specified in url"})
+			return
 		}
 
 		authorized, err := am.RepoStore.GetAccessStatusOnRepo(user, repo, currentUser)
 
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
 		}
 
 		if authorized {
@@ -225,8 +231,8 @@ func (am *AuthenticationMiddleware) AuthorizeEditAccess() gin.HandlerFunc {
 			ctx.Set("CONTRIBUTOR", false)
 		}
 
-		ctx.Set("REPOOWNER",user)
-		ctx.Set("REPONAME",repo)
+		ctx.Set("REPOOWNER", user)
+		ctx.Set("REPONAME", repo)
 		ctx.Next()
 	}
 }
@@ -237,28 +243,32 @@ func (am *AuthenticationMiddleware) AuthorizeOwnership() gin.HandlerFunc {
 
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrUsernameNotInContext})
+			return
 		}
 
 		user := ctx.Param("username")
 
 		if user == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no username was specified in url"})
+			return
 		}
 
 		repo := ctx.Param("reponame")
 
 		if repo == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no repository name was specified in url"})
+			return
 		}
 
 		if user == currentUser {
 			ctx.Set("OWNER", true)
 		} else {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you are not the owner of this repositories"})
+			return
 		}
 
-		ctx.Set("REPOOWNER",user)
-		ctx.Set("REPONAME",repo)
+		ctx.Set("REPOOWNER", user)
+		ctx.Set("REPONAME", repo)
 		ctx.Next()
 	}
 }

@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"errors"
+
 	// "os"
 	"regexp"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/ziad-eliwa/jit-version-control-system/internal/middleware"
 	"github.com/ziad-eliwa/jit-version-control-system/internal/models"
 	"github.com/ziad-eliwa/jit-version-control-system/internal/pkg/hashing"
+	"github.com/ziad-eliwa/jit-version-control-system/internal/utils"
 )
 
 var (
@@ -22,13 +24,14 @@ var (
 	ErrUserAlreadyExists   = errors.New("User Already Exists")
 	ErrEmailAlreadyExists  = errors.New("Email Already Exists")
 	ErrUserNotFound        = errors.New("User not found")
+	ErrIncorrectPassword   = errors.New("Password is not correct")
 )
 
 type AuthService struct {
 	UserStore  database.UserStore
 	TokenStore database.TokenStore
 	// Middleware
-	Authentication middleware.AuthenticationMiddleware
+	Authentication *middleware.AuthenticationMiddleware
 	// OAuth
 	googleClientID string
 	googleSecret   string
@@ -36,10 +39,11 @@ type AuthService struct {
 	githubSecret   string
 }
 
-func NewAuthService(userstore database.UserStore, tokenstore database.TokenStore) *AuthService {
+func NewAuthService(userstore database.UserStore, tokenstore database.TokenStore, authentication *middleware.AuthenticationMiddleware) *AuthService {
 	return &AuthService{
-		UserStore:      userstore,
-		TokenStore:     tokenstore,
+		Authentication: authentication,
+		UserStore:  userstore,
+		TokenStore: tokenstore,
 		// googleClientID: os.Getenv("GOOGLE_KEY"),
 		// googleSecret:   os.Getenv("GOOGLE_SECRET"),
 		// githubClientID: os.Getenv("GITHUB_KEY"),
@@ -61,6 +65,13 @@ func (ah *AuthService) Login(username, password string) (*models.TokenResponse, 
 		return nil, ErrInvalidCredentials
 	}
 
+	var pass hashing.Password
+	pass.Hash = []byte(user.PasswordHash)
+
+	if ok,_ := pass.MatchPassword([]byte(password)); !ok {
+		return nil, ErrIncorrectPassword
+	}
+
 	tokens, err := ah.GenerateAccessTokens(user.Username)
 
 	if err != nil {
@@ -80,16 +91,21 @@ func (ah *AuthService) Login(username, password string) (*models.TokenResponse, 
 }
 
 func (ah *AuthService) Register(username, password, fullname, email string) (*models.TokenResponse, error) {
-	retrievedUser, err := ah.UserStore.GetUserbyUsername(username)
+	_, err := ah.UserStore.GetUserbyUsername(username)
 
 	if err != sql.ErrNoRows {
 		if err != nil {
-			return nil, ErrUserAlreadyExists
+			return nil, err
 		}
-		return nil, err
+		return nil, ErrUserAlreadyExists
 	}
 
-	if retrievedUser.EmailAddress == email {
+	_, err = ah.UserStore.GetUserbyEmailAddress(email)
+
+	if err != sql.ErrNoRows {
+		if err != nil {
+			return nil, err
+		}
 		return nil, ErrEmailAlreadyExists
 	}
 
@@ -98,12 +114,13 @@ func (ah *AuthService) Register(username, password, fullname, email string) (*mo
 	if !emailRegex.MatchString(email) {
 		return nil, ErrInvalidEmailAddress
 	}
-	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9]{5,20}$`)
+
+	usernameRegex := regexp.MustCompile(`^[a-z0-9_-]{5,20}$`)
 	if !usernameRegex.MatchString(username) {
 		return nil, ErrInvalidUsername
 	}
-	passRegex := regexp.MustCompile(`^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%*])[A-Za-z\d!@#$%*]{8,}$`)
-	if !passRegex.MatchString(password) {
+
+	if !utils.IsValidPassword(password) {
 		return nil, ErrInvalidPassword
 	}
 
@@ -113,7 +130,7 @@ func (ah *AuthService) Register(username, password, fullname, email string) (*mo
 
 	registeredUser := &database.User{
 		Username:     username,
-		PasswordHash: pass.Hash,
+		PasswordHash: string(pass.Hash),
 		FullName:     fullname,
 		EmailAddress: email,
 	}
@@ -125,13 +142,14 @@ func (ah *AuthService) Register(username, password, fullname, email string) (*mo
 		return nil, err
 	}
 
-	err = ah.TokenStore.StoreRefreshToken(username, tokens.RefreshToken)
+	_, err = ah.UserStore.CreateUser(registeredUser)
 
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = ah.UserStore.CreateUser(registeredUser)
+	err = ah.TokenStore.StoreRefreshToken(username, tokens.RefreshToken)
+
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +174,7 @@ func (ah *AuthService) GenerateAccessTokens(username string) (*models.TokenRespo
 	}
 
 	return &models.TokenResponse{
-		AccessToken: accessToken,
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
 }
-

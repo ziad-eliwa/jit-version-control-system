@@ -137,7 +137,7 @@ func (pg *PostgresRepoStore) GetAllReposbyUsername(username, currentUsername str
 	}
 
 	query =
-		`SELECT r.repoName, r.repoOnwer, r.description, r.privacy, r.createdAt FROM Repository AS r 
+		`SELECT r.repoName, r.repoOwner, r.description, r.privacy, r.createdAt FROM Repository AS r 
 		INNER JOIN RepositoryUsers AS ru 
 		ON r.repoName = ru.repoName AND r.repoOwner = ru.repoOwner
 		WHERE ru.contributor = $1`
@@ -171,7 +171,7 @@ func (pg *PostgresRepoStore) GetAllReposbyUsername(username, currentUsername str
 		}
 
 		currentUserQuery :=
-			`SELECT r.repoName, r.repoOnwer, r.description, r.privacy, r.createdAt FROM Repository AS r 
+			`SELECT r.repoName, r.repoOwner, r.description, r.privacy, r.createdAt FROM Repository AS r 
 		INNER JOIN RepositoryUsers AS ru 
 		ON r.repoName = ru.repoName AND r.repoOwner = ru.repoOwner
 		WHERE ru.contributor = $1 AND r.repoOwner = $2`

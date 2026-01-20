@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS RefreshTokens ( 
     username VARCHAR(50),
-    refreshtoken VARCHAR(32),
+    refreshtoken VARCHAR(50),
     expiry INTEGER, 
     created_at TIMESTAMP NOT NULL,
     revoked_at TIMESTAMP,

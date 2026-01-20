@@ -23,17 +23,20 @@ func (rh *RepoHandler) HandleGetRepo(c *gin.Context) {
 	privacy, ok := c.Get("PRIVACY")
 
 	if !ok {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "privacy was not found in context"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "privacy was not found in context"})
+		return
 	}
 
 	contributor, ok := c.Get("CONTRIBUTOR")
 
 	if !ok {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "contributor state was not found in context"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "contributor state was not found in context"})
+		return
 	}
 
 	if privacy == "PRIVATE" && contributor == false {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you do not have access to this reposoitory"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "you do not have access to this reposoitory"})
+		return
 	}
 
 	repository := &database.Repository{}
@@ -46,13 +49,15 @@ func (rh *RepoHandler) HandleCreateRepo(c *gin.Context) {
 
 	err := c.BindJSON(&repo)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "repository was not found in request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repository was not found in request"})
+		return
 	}
 
 	_, err = rh.RepoStore.CreateRepo(repo)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "repository created succecssfully"})
@@ -64,13 +69,15 @@ func (rh *RepoHandler) HandleAddRemoteRepo(c *gin.Context) {
 
 	contributor, ok := c.Get("CONTRIBUTOR")
 	if !ok {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "contributor state was not found in context"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "contributor state was not found in context"})
+		return
 	}
 
 	if contributor == true {
 		secret, err := rh.RepoStore.GetRepoSecret(repoOwner, repoName)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			return
 		}
 		c.JSON(http.StatusAccepted, gin.H{"secret": secret})
 	} else {
@@ -91,16 +98,19 @@ func (rh *RepoHandler) HandleGrantAccessOnRepo(c *gin.Context) {
 	err := c.BindJSON(&req)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no target was specified in request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no target was specified in request"})
+		return
 	}
 
 	err = rh.RepoStore.GrantAccessOnRepo(repoOwner, repoName, req.TargetUsername)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "this user already does not have access already"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "this user already does not have access already"})
+			return
 		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "success granting access"})
@@ -115,16 +125,19 @@ func (rh *RepoHandler) HandleRevokeAccessOnRepo(c *gin.Context) {
 	err := c.BindJSON(&req)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no target was specified in request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no target was specified in request"})
+		return
 	}
 
 	err = rh.RepoStore.RevokeAccessOnRepo(repoOwner, repoName, req.TargetUsername)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "this user already does not have access already"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "this user already does not have access already"})
+			return
 		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "success revoking access"})
@@ -133,18 +146,21 @@ func (rh *RepoHandler) HandleRevokeAccessOnRepo(c *gin.Context) {
 func (rh *RepoHandler) HandleGetAllRepos(c *gin.Context) {
 	currentUser, err := rh.Authorizer.ExtractUserFromContext(c)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "please log in"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "please log in"})
+		return
 	}
 
 	user := c.Param("username")
 	if user == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing username in request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing username in request"})
+		return
 	}
 
 	repos, err := rh.RepoStore.GetAllReposbyUsername(user, currentUser)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
 	}
 
 	c.JSON(http.StatusFound, repos)

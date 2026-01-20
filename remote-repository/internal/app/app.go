@@ -61,7 +61,7 @@ func NewApplication(logger *slog.Logger) (*Application, error) {
 		IdentityKey: "username",
 	}
 	// Services
-	authService := services.NewAuthService(userStore, tokenStore)
+	authService := services.NewAuthService(userStore, tokenStore, authMiddleware)
 	pushService := &services.PushService{}
 	pullService := &services.PullService{}
 	// Handlers

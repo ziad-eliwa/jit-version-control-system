@@ -22,7 +22,7 @@ type RefreshToken struct {
 }
 
 type PostgresTokenStore struct {
-	DB *sql.DB
+	DB     *sql.DB
 	Logger *slog.Logger
 }
 
@@ -36,7 +36,7 @@ func (pg *PostgresTokenStore) StoreRefreshToken(username, token string) error {
 		return err
 	}
 
-	_, err = tx.Exec(query, username, token, time.Now(), 0)
+	_, err = tx.Exec(query, username, token, time.Now(), false)
 
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (pg *PostgresTokenStore) GetRefreshToken(token string) (*RefreshToken, erro
 
 func (pg *PostgresTokenStore) RevokeAllTokens(username string) error {
 	query :=
-		`UPDATE RefreshTokens WHERE username = $1 SET revoked = true`
+		`UPDATE RefreshTokens SET revoked = true WHERE username = $1`
 
 	tx, err := pg.DB.Begin()
 
@@ -81,7 +81,13 @@ func (pg *PostgresTokenStore) RevokeAllTokens(username string) error {
 		return err
 	}
 
-	return nil
+	err = tx.Commit()
+
+	if err != nil {
+		return tx.Rollback()
+	}
+
+	return nil 
 }
 
 func (pg *PostgresTokenStore) RevokeToken(token string) error {

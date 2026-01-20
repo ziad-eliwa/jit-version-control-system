@@ -27,6 +27,7 @@ func (ah *AuthHandler) HandleRegister(c *gin.Context) {
 		ah.Logger.Error("Error converting the request from json")
 		return
 	}
+
 	if req.Username == "" || req.Password == "" || req.EmailAddress == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing Credentials"})
 		ah.Logger.Error("Invalid Request Body")
@@ -35,8 +36,8 @@ func (ah *AuthHandler) HandleRegister(c *gin.Context) {
 	tokenRes, err := ah.AuthenticatonService.Register(req.Username, req.Password, req.FullName, req.EmailAddress)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to Register"})
-		ah.Logger.Error(fmt.Sprintf("Error Registering User, %v", err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ah.Logger.Error(fmt.Sprintf("Error Registering User, %v", err.Error()))
 		return
 	}
 
@@ -62,7 +63,11 @@ func (ah *AuthHandler) HandleLogin(c *gin.Context) {
 	tokenRes, err := ah.AuthenticatonService.Login(req.Username, req.Password)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to Login"})
+		if err == services.ErrIncorrectPassword {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to Login"})
+		}
 		ah.Logger.Error(fmt.Sprintf("Error Login User, %v", err))
 		return
 	}
@@ -72,15 +77,16 @@ func (ah *AuthHandler) HandleLogin(c *gin.Context) {
 
 func (ah *AuthHandler) HandleLogout(c *gin.Context) {
 	username, err := ah.AuthenticatonService.Authentication.ExtractUserFromContext(c)
+
 	if err != nil {
 		ah.Logger.Error(fmt.Sprintf("Username does not exist in Context, %v", err))
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err})
 	}
 
 	err = ah.AuthenticatonService.TokenStore.RevokeAllTokens(username)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
@@ -93,25 +99,25 @@ func (ah *AuthHandler) HandleLogout(c *gin.Context) {
 func (ah *AuthHandler) HandleRefresh(c *gin.Context) {
 	req, err := middleware.ExtractRefreshTokenFromContext(c)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "No refresh token found in request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No refresh token found in request"})
 		return
 	}
 
 	token, err := ah.AuthenticatonService.TokenStore.GetRefreshToken(req.RefreshToken)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "refresh token does not exist. Please log in again"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token does not exist. Please log in again"})
 		return
 	}
 
 	if token.Revoked {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "refresh token revoked. Please log in again"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token revoked. Please log in again"})
 		return
 	}
 
 	expired := token.CreatedAt.Add(ah.AuthenticatonService.Authentication.MaxRefresh).After(time.Now())
 	if expired {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired. Please log in again"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired. Please log in again"})
 		return
 	}
 
@@ -121,7 +127,7 @@ func (ah *AuthHandler) HandleRefresh(c *gin.Context) {
 	newTokenPair, err := ah.AuthenticatonService.GenerateAccessTokens(username)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 

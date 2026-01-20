@@ -7,7 +7,7 @@ import (
 
 type User struct {
 	Username     string `json:"username"`
-	PasswordHash []byte `json:"omit"`
+	PasswordHash string `json:"omit"`
 	FullName     string `json:"full_name"`
 	Bio          string `json:"bio,omitempty"`
 	EmailAddress string `json:"email"`
@@ -104,7 +104,7 @@ func (pg *PostgresUserStore) GetUserbyEmailAddress(email string) (*User, error) 
 	user := &User{}
 
 	query :=
-		`SELECT * FROM Users WHERE email = $1`
+		`SELECT * FROM Users WHERE email_address = $1`
 
 	err := pg.DB.QueryRow(query, email).Scan(&user.Username, &user.FullName, &user.PasswordHash, &user.Bio, &user.EmailAddress)
 
