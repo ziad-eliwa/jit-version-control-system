@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -84,6 +85,11 @@ func (ah *AuthHandler) HandleLogout(c *gin.Context) {
 	}
 
 	err = ah.AuthenticatonService.TokenStore.RevokeAllTokens(username)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"message": "you are already logged out"})
+		return
+	}
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})

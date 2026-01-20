@@ -75,10 +75,20 @@ func (pg *PostgresTokenStore) RevokeAllTokens(username string) error {
 		return err
 	}
 
-	_, err = tx.Exec(query, username)
+	result, err := tx.Exec(query, username)
 
 	if err != nil {
 		return err
+	}
+
+	rowsAffected,err := result.RowsAffected(); 
+
+	if err != nil {
+		return err
+	}
+	
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
 	}
 
 	err = tx.Commit()

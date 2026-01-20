@@ -88,7 +88,7 @@ func (am *AuthenticationMiddleware) ValidateJWTToken(c *gin.Context) (jwt.MapCla
 	})
 
 	if err != nil {
-		if err == jwt.ErrTokenExpired {
+		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredToken
 		}
 		return nil, err
