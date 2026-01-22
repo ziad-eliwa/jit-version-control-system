@@ -16,9 +16,6 @@ func SetupRoutes(app *app.Application) *gin.Engine {
 	auth.POST("/login", app.AuthHandler.HandleLogin)       // Done
 	auth.POST("/register", app.AuthHandler.HandleRegister) // Done
 
-	auth.GET("/:provider") // Google - GitHub
-	auth.GET("/:provider/callback")
-
 	auth.POST("/refresh", app.AuthHandler.HandleRefresh)                                 // Done
 	auth.POST("/logout", app.AuthMiddleware.Autheticate(), app.AuthHandler.HandleLogout) // Done
 
@@ -49,7 +46,6 @@ func SetupRoutes(app *app.Application) *gin.Engine {
 1- Handlers and Repostory Store -- Done
 2- Testing using Insomnia
 3- C++ Add commands
-4- OAuth
 5- Push/Pull Service with AWS S3
-6- Add redis for caching
+6- Add redis for caching and logout 
 */

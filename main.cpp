@@ -16,39 +16,41 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <curl/curl.h>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   // Argument parser for command line interface.
   ArgParser parser(argv[0], "Jit Version Control System.");
-  parser.add_command("help", "Show this help message").set_callback([&]() {
-    std::cout << parser.help_message() << std::endl;
-  });
+  parser.add_command("help", "Show this help message").set_callback([&]()
+                                                                    { std::cout << parser.help_message() << std::endl; });
 
   // Initializing a jit repository.
-  parser.add_command("init", "Initialize a repository").set_callback([&]() {
+  parser.add_command("init", "Initialize a repository").set_callback([&]()
+                                                                     {
     std::filesystem::path repo = "./.jit";
     if (std::filesystem::exists(repo))
       throw std::runtime_error(".jit directory already exists");
     Refs refs(repo / "refs", repo / "HEAD");
-    refs.updateHead("main");
-  });
+    refs.updateHead("main"); });
 
   // Adding files or directories to the staging area.
   std::string addPath;
   parser.add_command("add", "Add file to the staging area")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         ObjectStore store(repo / "objects");
         IndexStore index(repo / "index", store);
         index.add(addPath);
-        index.save();
-      })
+        index.save(); })
       .add_argument(addPath, "File Path", "");
 
   // Commiting changes into the repository.
   std::string commitMessage;
   parser.add_command("commit", "Add file to the staging area")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         ObjectStore store(repo / "objects");
         IndexStore index(repo / "index", store);
@@ -73,14 +75,14 @@ int main(int argc, char *argv[]) {
 
         store.store(newCommit);
         if (refs.isHeadBranch())
-          refs.updateRef(refs.getHead(), newCommit->getHash());
-      })
+          refs.updateRef(refs.getHead(), newCommit->getHash()); })
       .add_option(commitMessage, "-m,--message",
                   "Must be between double quotations.");
 
   // Shows the logs of the commits stored in the repository.
   parser.add_command("log", "Display the log of the commits")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         ObjectStore store(repo / "objects");
         Refs refs(repo / "refs", repo / "HEAD");
@@ -95,13 +97,13 @@ int main(int argc, char *argv[]) {
         Vector<Pair<std::string, std::string>> log;
         store.retrieveLog(lastCommit, log);
         for (auto &l : log)
-          std::cout << l.second << std::endl;
-      });
+          std::cout << l.second << std::endl; });
 
   // Computes the difference between different commits and files.
   std::string filePath1, filePath2;
   parser.add_command("diff", "Computes the differences between files")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         ObjectStore store(repo / "objects");
         IndexStore index(repo / "index", store);
@@ -281,8 +283,7 @@ int main(int argc, char *argv[]) {
           for (auto str : results) {
             std::cout << str << "\n";
           }
-        }
-      })
+        } })
       .add_argument(filePath1, "", "", false)
       .add_argument(filePath2, "", "", false);
 
@@ -291,7 +292,8 @@ int main(int argc, char *argv[]) {
       .add_command(
           "status",
           "Shows the tracked and untracked files in the working repository.")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         std::filesystem::path wd = repo.parent_path();
         ObjectStore store(repo / "objects");
@@ -365,12 +367,12 @@ int main(int argc, char *argv[]) {
         }
         if (clean) {
           std::cout << "Working tree clean." << std::endl;
-        }
-      });
+        } });
 
   std::string target;
   parser.add_command("checkout", "Switches to a branch or to a commit")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         std::filesystem::path wd = repo.parent_path();
         ObjectStore store(repo / "objects");
@@ -387,13 +389,13 @@ int main(int argc, char *argv[]) {
         } else {
           std::cout << "no such branch or commit '" << target << "'"
                     << std::endl;
-        }
-      })
+        } })
       .add_argument(target, "Commit hash", "");
 
   std::string branchName;
   parser.add_command("branch", "Creates a branch in the working directory.")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         Refs refs(repo / "refs", repo / "HEAD");
         if (branchName.empty()) {
@@ -402,12 +404,12 @@ int main(int argc, char *argv[]) {
             std::cout << (b == refs.getHead() ? "+" : " ") << b << std::endl;
           return;
         }
-        refs.updateRef(branchName, "HEAD");
-      })
+        refs.updateRef(branchName, "HEAD"); })
       .add_argument(branchName, "", "", false);
 
   parser.add_command("merge", "Merge two branches together.")
-      .set_callback([&]() {
+      .set_callback([&]()
+                    {
         std::filesystem::path repo = repoRoot();
         std::filesystem::path wd = repo.parent_path();
         ObjectStore store(repo / "objects");
@@ -512,32 +514,119 @@ int main(int argc, char *argv[]) {
           }
 
           refs.updateMergeHead(refs.resolve(branchName));
-        }
-      })
+        } })
       .add_argument(branchName, "branch name", "branch to merge");
 
-  parser
-      .add_command("push",
-                   "push the current working tree to the remote repository")
-      .set_callback([&]() {
+  // Remote Repository
+  /*
+  Commands:
+  User Authentication
+  -- auth login
+  -- auth register
+  -- profile // get the current user profile
+  -- profile -u,--username <username> // get profile of the specified user
+  Repository Management
+  -- repo // print current
+  -- repo -u,--username <username> -r <reponame>// Show all repos for the current user
+  -- repo --all // show all repos for the current user 
+  -- repo create // create a repo for the current logged in user 
+  -- repo delete // delete a repo for the cuurrent logged in user
+  -- repo -l <link> // print the current repo information
+  Repository Authorization
+  -- grant <user> <link> // for current repo
+  -- revoke <user> <link> // for current repo
+  -- remote // print current remote origin
+  -- remote add <link> // One Repo One Origin
+  -- remote remove // remove current origin
+  File Upload & Download
+  -- push // upload the commit history to the remote repo 
+  -- pull // download the commit history from the remote repo
+  */
 
-      });
+  std::string username, password, email_address, full_name,repourl,reponame;
+  bool all;
+  // Authorization
+  parser.add_command("jithub login", "login to jithub remote server").set_callback([&]() {
 
-  parser.add_command("pull", "pull the working tree from the remote repository")
-      .set_callback([&]() {
+  })
+  .add_option(username, "-u,--username", "username of the user in the server", true).add_option(password, "-p,--password", "password for the user in the server", true);
 
-      });
-      
-  parser
-      .add_command("remote",
-                   "Change the remote repository to the chosen repository")
-      .set_callback([&]() {
+  parser.add_command("jithub register", "register to jithub remote server").set_callback([&]() {
 
-      });
+  })
+  .add_option(username, "-u,--username", "username for the user in the server", true)
+  .add_option(password, "-p,--password", "password for the user in the server", true)
+  .add_option(full_name, "-n,--name", "full name for the user in the server", true)
+  .add_option(email_address, "-e,--email", "email address for the user in the server", true);
 
-  try {
+  parser.add_command("profile","show profile for the specified user").set_callback([&]() {
+      if (username == "") {
+
+      } else  {
+
+      }
+
+  }).add_option(username,"-u,--username","username");
+  
+  
+  //Repository Management
+  parser.add_command("repo","repository management according to the flags specified").set_callback([&]() {
+
+  })
+  .add_option(username,"-u,--username","show repos for a user")
+  .add_option(reponame,"-r,--repo","show repo details for a specified user")
+  .add_option(all,"--all","show all repos")
+  .add_option(repourl,"-r,--url","show repo data for the specified url");
+
+  parser.add_command("repo create","create a repository for the current user").set_callback([&]() {
+
+  });
+
+  parser.add_command("repo delete","delete a repository for the current user").set_callback([&]() {
+
+  }).add_argument(reponame,"reponame","repo needs to be deleted for the current user");
+
+  parser.add_command("grant","grant access on the repository").set_callback([&](){
+
+  })
+  .add_argument(username,"username","target username for granting")
+  .add_argument(reponame,"reponame","target reponame for granting, must be the current logged in user and the owner");
+
+  parser.add_command("revoke","revoke access on the repository").set_callback([&]() {
+
+  })
+  .add_argument(username,"username","target username for revoking")
+  .add_argument(reponame,"reponame","target reponame for revoking, must be the current logged in user and the owner");
+
+  // Remote Origin Management  
+  parser.add_command("remote","Show remote origin for this repository").set_callback([&]() {
+    
+  });
+  
+  parser.add_command("remote add", "add remote server to the current repository").set_callback([&]() {
+    
+  })
+  .add_argument(repourl, "repo_url", "repository url in the form \"jithub.com/repoowner/reponame\"");
+  
+  parser.add_command("remote remove", "remove remote server from the current repository").set_callback([&]() {
+    
+  });
+    
+  // Push & Pull Service
+  parser.add_command("push","push the current working tree to the remote repository").set_callback([&]() {
+
+  });
+
+  parser.add_command("pull", "pull the working tree from the remote repository").set_callback([&]() {
+
+  });
+  
+  try
+  {
     parser.parse(argc, argv);
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception &e)
+  {
     std::cout << e.what() << std::endl;
   }
 

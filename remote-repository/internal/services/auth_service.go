@@ -3,8 +3,6 @@ package services
 import (
 	"database/sql"
 	"errors"
-
-	// "os"
 	"regexp"
 
 	"github.com/ziad-eliwa/jit-version-control-system/internal/database"

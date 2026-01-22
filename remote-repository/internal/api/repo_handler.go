@@ -167,9 +167,27 @@ func (rh *RepoHandler) HandleGetAllRepos(c *gin.Context) {
 }
 
 func (rh *RepoHandler) HandlePush(c *gin.Context) {
+	contributor, ok := c.Get("CONTRIBUTOR")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "contributor state was not found in context"})
+		return
+	}
 
+	if contributor == false {
+		c.JSON(http.StatusUnauthorized,gin.H{"error":"you are not authorized to pull to this repo"})
+		return 
+	}
 }
 
 func (rh *RepoHandler) HandlePull(c *gin.Context) {
-
+	contributor, ok := c.Get("CONTRIBUTOR")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "contributor state was not found in context"})
+		return
+	}
+	
+	if contributor == false {
+		c.JSON(http.StatusUnauthorized,gin.H{"error":"you are not authorized to pull to this repo"})
+		return 
+	}
 }
